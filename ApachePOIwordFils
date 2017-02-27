@@ -1,0 +1,75 @@
+ <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>3.8</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>3.8</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml-schemas</artifactId>
+            <version>3.8</version>
+        </dependency>
+
+
+        XWPFDocument doc = new XWPFDocument(new FileInputStream("/home/username/test.docx"));
+        List<XWPFParagraph> list = doc.getParagraphs();
+        XWPFDocument tmp = new XWPFDocument();
+        tmp.createStyles();
+        String fileName = "test";
+        boolean isNew = true;
+
+        for (XWPFParagraph p : list) {
+            XWPFStyles style = tmp.getStyles();
+            if (p.getStyleID() != null && !style.styleExist(p.getStyleID())) {
+                style.addStyle(doc.getStyles().getStyle(p.getStyle()));
+            }
+            // формируем имя файла из первых символов
+            if (isNew || StringUtils.isBlank(fileName)) {
+                fileName = p.getParagraphText().trim();
+                if (fileName.length() > 100) {
+                    fileName = StringUtils.left(fileName, 50);
+                }
+            }
+            XWPFParagraph tmpParagraph = tmp.createParagraph();
+            tmpParagraph.setStyle(p.getStyle());
+            isNew = false;
+            for (XWPFRun r : p.getRuns()) {
+                XWPFRun tmpRun = tmpParagraph.createRun();
+                tmpRun.setTextPosition(r.getTextPosition());
+                // важно использовать именно метод toString() поскольку 
+                // этот метод сохраняет возможные символы "\n", которые getText обрезает
+                tmpRun.setText(r.toString()); 
+                tmpRun.setBold(r.isBold());
+                tmpRun.setFontFamily(r.getFontFamily());
+                tmpRun.setFontSize(r.getFontSize());
+                tmpRun.setItalic(r.isItalic());
+                tmpRun.setStrike(r.isStrike());
+                tmpRun.setSubscript(r.getSubscript());
+                tmpRun.setUnderline(r.getUnderline());
+                // метод isPageBreak всегда возвращает false, 
+                // независимо от того, содержится ли разрыв страницы в параграфе или нет
+                // так что используем грязный хак 
+                p.setPageBreak(r.getCTR().toString().contains("<w:br w:type=\"page\"/>"));
+            }
+            if (p.isPageBreak()) {
+                try {
+                    isNew = true;
+                    tmp.write(new FileOutputStream("/home/username/result/" + fileName + ".docx"));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                tmp = new XWPFDocument();
+                // требуется версия POI  >= 3.8 чтобы сделать это 
+                tmp.createStyles();
+            }
+        }
+        try {
+             // сохраним последний кусок в файл
+            tmp.write(new FileOutputStream("/home/username/result/" + fileName + ".docx"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }

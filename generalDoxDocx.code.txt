@@ -1,0 +1,52 @@
+create or replace procedure P_USERREPORTS_BINARY_DATA(  
+  nCOMPANY in number,  -- Организация  
+  nPROCESS in number   -- Идентификатор процесса  
+) is  
+  C          clob;  
+  B          blob;  
+  -- процедура записи строки в CLOB  
+  procedure PUT_LINE(S in varchar2) as  
+  begin  
+    DBMS_LOB.WRITEAPPEND(C, LENGTH(S || CR), S || CR);  
+  end;  
+  -- процедура создания BLOB из CLOB  
+  procedure SAVE_MODULE(DATA in out nocopy clob, RES in out nocopy blob) as  
+    --  
+    L_DEST_OFFSET   integer;  
+    L_SOURCE_OFFSET integer;  
+    L_LANG_CONTEXT  integer;  
+    L_WARNING       integer;  
+    L_BLOB_CSID     integer;  
+    --  
+  begin  
+    L_BLOB_CSID     := NLS_CHARSET_ID('CL8MSWIN1251');  
+    L_DEST_OFFSET   := 1;  
+    L_SOURCE_OFFSET := 1;  
+    L_LANG_CONTEXT  := DBMS_LOB.DEFAULT_LANG_CTX;  
+    L_WARNING       := DBMS_LOB.WARN_INCONVERTIBLE_CHAR;  
+    DBMS_LOB.CONVERTTOBLOB(DEST_LOB     => RES,  
+                           SRC_CLOB     => DATA,  
+                           AMOUNT       => DBMS_LOB.LOBMAXSIZE,  
+                           DEST_OFFSET  => L_DEST_OFFSET,  
+                           SRC_OFFSET   => L_SOURCE_OFFSET,  
+                           BLOB_CSID    => L_BLOB_CSID,  
+                           LANG_CONTEXT => L_LANG_CONTEXT,  
+                           WARNING      => L_WARNING);  
+  end;  
+begin  
+  -- Создаем временный CLOB  
+  DBMS_LOB.CREATETEMPORARY(C, true);  
+  -- Описываем отчет  
+  PUT_LINE('<html><body><p>Это пример пользовательского отчёта типа «Двоичные данные»</p></div><p>' || get_company_fullname(0, nCOMPANY) || '</p></body></html>');  
+  --  
+  DBMS_LOB.CREATETEMPORARY(B, true); -- создаем временный BLOB  
+  SAVE_MODULE(C, B); -- заполняем BLOB из CLOB  
+  DBMS_LOB.FREETEMPORARY(C); -- удаляем CLOB  
+  --  
+  -- Заполняем FILEBUFFER данными из BLOB  
+  insert into FILE_BUFFER  
+    (IDENT, FILENAME, BDATA, RUN_CMD)  
+  values  
+    (NPROCESS, '.htm', B, 'winword.exe /t %1'); -- открываем в winword.exe  
+  DBMS_LOB.FREETEMPORARY(B); -- удаляем BLOB  
+end;

@@ -1,0 +1,24 @@
+FileInputStream ins=new FileInputStream("C:\\temp\\6.doc");
+HWPFDocument doc=new HWPFDocument(ins);
+  
+  Range range = doc.getRange();
+  for (int i = 0; i < range.numParagraphs(); i++) {
+    Paragraph par = range.getParagraph(i);
+
+    if (!par.isInTable()) {
+       System.out.println("text:" + par.text());
+    } else {
+
+    Table table = range.getTable(par);
+       for (int rowIdx = 0; rowIdx < table.numRows(); rowIdx++) {
+          TableRow row = table.getRow(rowIdx);
+          for (int colIdx = 0; colIdx < row.numCells(); colIdx++) {
+             TableCell cell = row.getCell(colIdx);
+             System.out.print(" column=" + cell.getParagraph(0).text());
+             i++;
+          }
+          System.out.println();
+          i++;
+       }
+   }
+}
